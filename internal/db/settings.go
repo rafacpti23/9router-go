@@ -46,50 +46,52 @@ type CapacityAdapterEntry struct {
 
 // SettingsData represents token saver, combo routing, and general settings stored in the settings table.
 type SettingsData struct {
-	RTKEnabled                 bool                            `json:"rtkEnabled"`
-	RTKMode                    string                          `json:"rtkMode,omitempty"`
-	RTKIntensity               string                          `json:"rtkIntensity,omitempty"`
-	RTKMaxLines                int                             `json:"rtkMaxLines,omitempty"`
-	RTKMaxChars                int                             `json:"rtkMaxChars,omitempty"`
-	RTKDeduplicate             bool                            `json:"rtkDeduplicate,omitempty"`
-	RTKCategories              map[string]bool                 `json:"rtkCategories,omitempty"`
-	RTKFilters                 map[string]bool                 `json:"rtkFilters,omitempty"`
-	RTKRawRetention            string                          `json:"rtkRawRetention,omitempty"`
-	CavemanEnabled             bool                            `json:"cavemanEnabled"`
-	CavemanMode                string                          `json:"cavemanMode,omitempty"`
-	CavemanLevel               string                          `json:"cavemanLevel"`
-	CavemanAutoClarity         bool                            `json:"cavemanAutoClarity,omitempty"`
-	CavemanLanguage            string                          `json:"cavemanLanguage,omitempty"`
-	CavemanInputMode           bool                            `json:"cavemanInputMode,omitempty"`
-	CavemanPreserveKeywords    string                          `json:"cavemanPreserveKeywords,omitempty"`
-	PonytailEnabled            bool                            `json:"ponytailEnabled"`
-	PonytailLevel              string                          `json:"ponytailLevel"`
-	ADHDEnabled                bool                            `json:"adhdEnabled"`
-	ADHDLevel                  string                          `json:"adhdLevel"`
-	SystemPromptEnabled        bool                            `json:"systemPromptEnabled"`
-	SystemPromptPrefix         string                          `json:"systemPromptPrefix,omitempty"`
-	SystemPromptSuffix         string                          `json:"systemPromptSuffix,omitempty"`
-	HeadroomUrl                string                          `json:"headroomUrl"`
-	HeadroomCodeAware          bool                            `json:"headroomCodeAware"`
-	HeadroomKompress           bool                            `json:"headroomKompress"`
-	HeadroomTimeoutMs          int                             `json:"headroomTimeoutMs"`
-	SemanticCacheEnabled       bool                            `json:"semanticCacheEnabled"`
-	SemanticCacheTTL           int                             `json:"semanticCacheTTL,omitempty"`
-	SemanticCacheMaxEntries    int                             `json:"semanticCacheMaxEntries,omitempty"`
-	AutoUpdate                 bool                            `json:"autoUpdate"`
-	FallbackStrategy           string                          `json:"fallbackStrategy,omitempty"`
-	StickyRoundRobinLimit      int                             `json:"stickyRoundRobinLimit,omitempty"`
-	ForceFallback              bool                            `json:"forceFallback,omitempty"`
-	ComboStrategy              string                          `json:"comboStrategy,omitempty"`
-	ComboStickyRoundRobinLimit int                             `json:"comboStickyRoundRobinLimit,omitempty"`
-	ComboStrategies            map[string]ComboStrategy        `json:"comboStrategies,omitempty"`
-	ProviderStrategies         map[string]ProviderStrategy     `json:"providerStrategies,omitempty"`
-	CapacityAdapter            map[string]CapacityAdapterEntry `json:"capacityAdapter,omitempty"`
-	ProviderOverrides          map[string]ProviderOverrides    `json:"providerOverrides,omitempty"`
-	EnableObservability        bool                            `json:"enableObservability"`
-	ObservabilityMode          string                          `json:"observabilityMode,omitempty"`
-	RetentionDays              int                             `json:"retentionDays,omitempty"`
-	MaxRequestRecords          int                             `json:"maxRequestRecords,omitempty"`
+	ModelFailureThreshold       int                             `json:"modelFailureThreshold,omitempty"`
+	ModelFailureCooldownSeconds int                             `json:"modelFailureCooldownSeconds,omitempty"`
+	RTKEnabled                  bool                            `json:"rtkEnabled"`
+	RTKMode                     string                          `json:"rtkMode,omitempty"`
+	RTKIntensity                string                          `json:"rtkIntensity,omitempty"`
+	RTKMaxLines                 int                             `json:"rtkMaxLines,omitempty"`
+	RTKMaxChars                 int                             `json:"rtkMaxChars,omitempty"`
+	RTKDeduplicate              bool                            `json:"rtkDeduplicate,omitempty"`
+	RTKCategories               map[string]bool                 `json:"rtkCategories,omitempty"`
+	RTKFilters                  map[string]bool                 `json:"rtkFilters,omitempty"`
+	RTKRawRetention             string                          `json:"rtkRawRetention,omitempty"`
+	CavemanEnabled              bool                            `json:"cavemanEnabled"`
+	CavemanMode                 string                          `json:"cavemanMode,omitempty"`
+	CavemanLevel                string                          `json:"cavemanLevel"`
+	CavemanAutoClarity          bool                            `json:"cavemanAutoClarity,omitempty"`
+	CavemanLanguage             string                          `json:"cavemanLanguage,omitempty"`
+	CavemanInputMode            bool                            `json:"cavemanInputMode,omitempty"`
+	CavemanPreserveKeywords     string                          `json:"cavemanPreserveKeywords,omitempty"`
+	PonytailEnabled             bool                            `json:"ponytailEnabled"`
+	PonytailLevel               string                          `json:"ponytailLevel"`
+	ADHDEnabled                 bool                            `json:"adhdEnabled"`
+	ADHDLevel                   string                          `json:"adhdLevel"`
+	SystemPromptEnabled         bool                            `json:"systemPromptEnabled"`
+	SystemPromptPrefix          string                          `json:"systemPromptPrefix,omitempty"`
+	SystemPromptSuffix          string                          `json:"systemPromptSuffix,omitempty"`
+	HeadroomUrl                 string                          `json:"headroomUrl"`
+	HeadroomCodeAware           bool                            `json:"headroomCodeAware"`
+	HeadroomKompress            bool                            `json:"headroomKompress"`
+	HeadroomTimeoutMs           int                             `json:"headroomTimeoutMs"`
+	SemanticCacheEnabled        bool                            `json:"semanticCacheEnabled"`
+	SemanticCacheTTL            int                             `json:"semanticCacheTTL,omitempty"`
+	SemanticCacheMaxEntries     int                             `json:"semanticCacheMaxEntries,omitempty"`
+	AutoUpdate                  bool                            `json:"autoUpdate"`
+	FallbackStrategy            string                          `json:"fallbackStrategy,omitempty"`
+	StickyRoundRobinLimit       int                             `json:"stickyRoundRobinLimit,omitempty"`
+	ForceFallback               bool                            `json:"forceFallback,omitempty"`
+	ComboStrategy               string                          `json:"comboStrategy,omitempty"`
+	ComboStickyRoundRobinLimit  int                             `json:"comboStickyRoundRobinLimit,omitempty"`
+	ComboStrategies             map[string]ComboStrategy        `json:"comboStrategies,omitempty"`
+	ProviderStrategies          map[string]ProviderStrategy     `json:"providerStrategies,omitempty"`
+	CapacityAdapter             map[string]CapacityAdapterEntry `json:"capacityAdapter,omitempty"`
+	ProviderOverrides           map[string]ProviderOverrides    `json:"providerOverrides,omitempty"`
+	EnableObservability         bool                            `json:"enableObservability"`
+	ObservabilityMode           string                          `json:"observabilityMode,omitempty"`
+	RetentionDays               int                             `json:"retentionDays,omitempty"`
+	MaxRequestRecords           int                             `json:"maxRequestRecords,omitempty"`
 	// UsageHistoryRetentionDays bounds how far back the usage ledger is kept.
 	// It is a separate knob from RetentionDays on purpose: that one governs
 	// requestDetails, which is diagnostics nothing bills from, while this one
@@ -106,12 +108,14 @@ type SettingsData struct {
 // DefaultSettings returns fallback settings.
 func DefaultSettings() *SettingsData {
 	return &SettingsData{
-		RTKEnabled:     true,
-		RTKMode:        "simple",
-		RTKIntensity:   "standard",
-		RTKMaxLines:    100,
-		RTKMaxChars:    8000,
-		RTKDeduplicate: true,
+		ModelFailureThreshold:       3,
+		ModelFailureCooldownSeconds: 300,
+		RTKEnabled:                  true,
+		RTKMode:                     "simple",
+		RTKIntensity:                "standard",
+		RTKMaxLines:                 100,
+		RTKMaxChars:                 8000,
+		RTKDeduplicate:              true,
 		RTKCategories: map[string]bool{
 			"git":     true,
 			"build":   true,
@@ -165,6 +169,12 @@ func (r *Repo) GetSettings() (*SettingsData, error) {
 	}
 
 	s := DefaultSettings()
+	if v, ok := raw["modelFailureThreshold"].(float64); ok && v >= 1 && v <= 20 {
+		s.ModelFailureThreshold = int(v)
+	}
+	if v, ok := raw["modelFailureCooldownSeconds"].(float64); ok && v >= 10 && v <= 86400 {
+		s.ModelFailureCooldownSeconds = int(v)
+	}
 	if v, ok := raw["rtkEnabled"].(bool); ok {
 		s.RTKEnabled = v
 	}

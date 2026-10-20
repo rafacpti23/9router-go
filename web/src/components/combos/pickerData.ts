@@ -1,6 +1,7 @@
 import type { Combo, ProviderConnection, ProviderNode } from '../../api/client'
 import { getModelCaps, getModelKind, getModelsByProviderId, PROVIDER_ID_TO_ALIAS } from '../../lib/models'
 import { PROVIDER_CATALOG, isChatProvider } from '../../lib/providers'
+import { antigravityBackendModelID } from '../../lib/antigravity-models'
 
 const MEDIA_KINDS: Record<string, true> = {
   image: true,
@@ -26,6 +27,7 @@ export interface PickerModel {
   caps: { vision: boolean; audioInput: boolean; reasoning: boolean }
   /** True when the gateway confirmed this model is gone upstream. */
   deprecated?: boolean
+  unavailable?: boolean
 }
 
 export interface PickerGroup {
@@ -41,6 +43,7 @@ export interface PickerExtras {
   disabledModels?: Record<string, string[]>
   /** Deprecations keyed "<provider>/<model>", from /api/models/deprecations. */
   deprecations?: Record<string, unknown>
+  liveCatalogs?: Record<string, { complete: boolean; modelIds: string[] }>
 }
 
 export function resolveModelPickerGroups(
@@ -113,8 +116,25 @@ export function resolveModelPickerGroups(
     // operator may still want it in a combo while they replace it, and a
     // picker that silently dropped it would leave them editing JSON to find
     // out why it disappeared.
-    const isDeprecated = (modelId: string) =>
-      Boolean(extras.deprecations?.[`${catItem.id.toLowerCase()}/${modelId.toLowerCase()}`])
+    const isDeprecated = (modelId: string) => {
+      const state = extras.deprecations?.[`${catItem.id.toLowerCase()}/${modelId.toLowerCase()}`]
+      if (!state) return false
+      if (typeof state !== 'object') return Boolean(state)
+      const status = (state as { status?: string }).status
+      return status === 'gone' || status === 'retired'
+    }
+    const isCoolingDown = (modelId: string) => {
+      const item = extras.deprecations?.[`${catItem.id.toLowerCase()}/${modelId.toLowerCase()}`]
+      if (!item || typeof item !== 'object') return false
+      const state = item as { status?: string; cooldownUntil?: string }
+      return state.status === 'cooldown' && !!state.cooldownUntil && Date.parse(state.cooldownUntil) > Date.now()
+    }
+    const isMissingFromLiveCatalog = (modelId: string) => {
+      const catalog = extras.liveCatalogs?.[catItem.id.toLowerCase()]
+      if (!catalog?.complete || catItem.id.toLowerCase() !== 'antigravity') return false
+      const upstreamID = antigravityBackendModelID(modelId)
+      return !catalog.modelIds.includes(upstreamID)
+    }
 
 
     for (const m of rawModels || []) {
@@ -126,6 +146,7 @@ export function resolveModelPickerGroups(
         value: `${alias}/${m.id}`,
         caps: getModelCaps(m.id, m),
         deprecated: isDeprecated(m.id),
+        unavailable: isCoolingDown(m.id) || isMissingFromLiveCatalog(m.id),
       })
     }
 
@@ -138,6 +159,7 @@ export function resolveModelPickerGroups(
         value: `${alias}/${m.id}`,
         caps: getModelCaps(m.id),
         deprecated: isDeprecated(m.id),
+        unavailable: isCoolingDown(m.id) || isMissingFromLiveCatalog(m.id),
       })
     }
 
@@ -151,6 +173,7 @@ export function resolveModelPickerGroups(
         value: fullModel as string,
         caps: getModelCaps(modelId),
         deprecated: isDeprecated(modelId),
+        unavailable: isCoolingDown(modelId) || isMissingFromLiveCatalog(modelId),
       })
     }
 

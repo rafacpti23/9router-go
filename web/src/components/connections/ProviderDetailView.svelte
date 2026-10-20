@@ -36,6 +36,7 @@
     type CustomModelWrite,
   } from '../../lib/customModels'
   import { emailPrivacy, formatEmailLabel } from '../../lib/privacy'
+  import { antigravityBackendModelID } from '../../lib/antigravity-models'
   import { loadDeprecations, refreshDeprecations, subscribeDeprecations } from '../../lib/modelDeprecations.svelte'
   import DeprecatedBadge from '../../lib/ui/DeprecatedBadge.svelte'
   import Menu from '../../lib/ui/Menu.svelte'
@@ -186,6 +187,27 @@
       .filter((c) => c.provider === providerId)
       .sort((a, b) => (a.priority ?? 999999) - (b.priority ?? 999999))
   )
+  let liveAntigravityModelIds = $state<string[] | null>(null)
+  $effect(() => {
+    const pid = providerId
+    const active = providerConnections.filter((connection) => connection.isActive === 1)
+    if (pid !== 'antigravity' || active.length === 0) {
+      liveAntigravityModelIds = null
+      return
+    }
+    let cancelled = false
+    liveAntigravityModelIds = null
+    void Promise.all(active.map((connection) => api.getConnectionModels(connection.id)))
+      .then((catalogs) => {
+        if (cancelled || pid !== providerId) return
+        liveAntigravityModelIds = [...new Set(catalogs.flatMap((catalog) => catalog.models.map((model) => typeof model === 'string' ? model : model.id || model.model || model.name || '')))].filter(Boolean)
+      })
+      .catch(() => {
+        // A failed or partial discovery is not evidence that a model is absent.
+        if (!cancelled) liveAntigravityModelIds = null
+      })
+    return () => { cancelled = true }
+  })
   // Upstream parity: compatible-node detection drives the details card,
   // bottom Add button, models section, and edit-node modal.
   let isOpenAICompatibleNode = $derived(!!selectedNode && selectedNode.type === 'openai-compatible')
@@ -205,6 +227,11 @@
   let allAvailableModels = $derived<ModelItem[]>(
     buildAvailableModels(builtInModels, providerCustomModels)
   )
+  function isUnavailableFromAntigravity(modelId: string): boolean {
+    if (providerId !== 'antigravity' || liveAntigravityModelIds === null) return false
+    const upstreamId = antigravityBackendModelID(modelId)
+    return !liveAntigravityModelIds.includes(upstreamId)
+  }
   // Registry order, like upstream: `models` there is getModelsByProviderId()
   // verbatim (providers/[id]/page.js:158) with custom models appended after the
   // catalog, so the rows read in the same sequence on both dashboards.
@@ -3793,8 +3820,9 @@
         {@const testStatus = modelTestStatuses[model.id]}
         {@const isTestingThis = testStatus === 'testing'}
         {@const isSessionActive = checkIsActiveSession(model.id)}
+        {@const isUnavailable = isUnavailableFromAntigravity(model.id)}
         <div
-          class="group min-w-0 max-w-full rounded-lg border px-3 py-2 {testStatus === 'ok' ? 'border-green-500/40' : testStatus === 'blocked' ? 'border-amber-500/40' : testStatus === 'error' ? 'border-red-500/40' : 'border-border'} hover:bg-sidebar/50 transition-colors"
+          class="group min-w-0 max-w-full rounded-lg border px-3 py-2 {isUnavailable ? 'border-amber-500/40 opacity-60' : testStatus === 'ok' ? 'border-green-500/40' : testStatus === 'blocked' ? 'border-amber-500/40' : testStatus === 'error' ? 'border-red-500/40' : 'border-border'} hover:bg-sidebar/50 transition-colors"
         >
           <div class="flex min-w-0 items-start gap-2 sm:items-center">
             <span class="material-symbols-outlined shrink-0 text-base text-text-muted">smart_toy</span>
@@ -3815,6 +3843,12 @@
                   </span>
                 {/if}
                 <DeprecatedBadge provider={providerId} model={model.id} />
+                {#if isUnavailable}
+                  <span class="inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 text-[9px] font-semibold text-amber-600 dark:text-amber-400" title="Not listed in the successful live catalog from any active Antigravity connection">
+                    <span class="material-symbols-outlined text-[11px]">cloud_off</span>
+                    Unavailable
+                  </span>
+                {/if}
               </div>
               <span class="flex min-w-0 items-center text-[9px] gap-1 pl-1">
                 <span class="truncate text-[9px] italic text-text-muted/70">{model.name}</span>
@@ -3849,7 +3883,7 @@
               <button
                 type="button"
                 onclick={() => testModel(model.id)}
-                disabled={isTestingThis}
+                disabled={isTestingThis || isUnavailable}
                 class="rounded p-0.5 text-text-muted transition-opacity hover:bg-sidebar hover:text-primary opacity-100 sm:opacity-0 sm:group-hover:opacity-100 cursor-pointer"
                 title={modelTestErrors[model.id] || (testStatus === 'ok' ? 'Test Passed' : 'Test')}
               >

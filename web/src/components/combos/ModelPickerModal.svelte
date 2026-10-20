@@ -53,10 +53,26 @@
 
   let searchQuery = $state('')
   let fetchedExtras = $state<ResolvedPickerExtras>(cachedPickerExtras ?? EMPTY_PICKER_EXTRAS)
+  let liveCatalogs = $state<Record<string, { complete: boolean; modelIds: string[] }>>({})
 
   $effect(() => {
     if (isOpen) {
       searchQuery = ''
+      const antigravityConnections = connections.filter((connection) => connection.provider === 'antigravity' && connection.isActive === 1)
+      if (antigravityConnections.length > 0) {
+        void Promise.all(antigravityConnections.map((connection) => api.getConnectionModels(connection.id)))
+          .then((catalogs) => {
+            liveCatalogs = {
+              antigravity: {
+                complete: true,
+                modelIds: [...new Set(catalogs.flatMap((catalog) => catalog.models.map((model) => typeof model === 'string' ? model : model.id || model.model || '')))].filter(Boolean),
+              },
+            }
+          })
+          .catch(() => { liveCatalogs = {} })
+      } else {
+        liveCatalogs = {}
+      }
       // Upstream parity (ComboFormModal fetchModalData): aliases drive
       // passthrough + custom-node rows; customs/disabled complete the merge.
       // One batch, one write: three chained fetches each published their own
@@ -74,6 +90,7 @@
       customModels: customModels ?? fetchedExtras.customModels,
       disabledModels: disabledModels ?? fetchedExtras.disabledModels,
       deprecations: deprecations ?? fetchedExtras.deprecations,
+      liveCatalogs,
     })
   )
   let filteredCombos = $derived(
@@ -206,6 +223,7 @@
                   vision={model.caps.vision}
                   reasoning={model.caps.reasoning}
                   deprecated={model.deprecated}
+                  unavailable={model.unavailable}
                   onToggle={handleToggle}
                 />
               {/each}

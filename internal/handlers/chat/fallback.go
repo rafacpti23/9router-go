@@ -185,6 +185,10 @@ func (h *ChatHandler) handleAccountFallback(
 			lastErr = ue
 			continue
 		}
+		if errors.As(lastErr, &ue) && h.noteModelFailure(ctx, provider, model, connObj.ID, ue) {
+			excludeIDs = append(excludeIDs, connObj.ID)
+			continue
+		}
 		if errors.As(lastErr, &ue) && providers.RetryableStatusCodes[ue.StatusCode] {
 			if handlerutil.IsProbeContext(ctx) {
 				excludeIDs = append(excludeIDs, connObj.ID)

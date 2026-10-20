@@ -18,6 +18,8 @@ const (
 	// DeprecationRetired was learned from a successful catalogue sync that no
 	// longer lists the model.
 	DeprecationRetired DeprecationStatus = "retired"
+	// DeprecationCooldown is a temporary model-level circuit breaker after repeated failures.
+	DeprecationCooldown DeprecationStatus = "cooldown"
 )
 
 // ModelDeprecation is what the gateway knows about one provider's model: when
@@ -26,12 +28,13 @@ const (
 // Key is "<provider>/<model>" — the same wire shape as a combo entry, so a
 // caller holding a combo target needs no separate resolution step.
 type ModelDeprecation struct {
-	Provider   string            `json:"provider"`
-	Model      string            `json:"model"`
-	Status     DeprecationStatus `json:"status"`
-	Message    string            `json:"message,omitempty"`
-	Successor  string            `json:"successor,omitempty"`
-	DetectedAt string            `json:"detectedAt,omitempty"`
+	Provider      string            `json:"provider"`
+	Model         string            `json:"model"`
+	Status        DeprecationStatus `json:"status"`
+	Message       string            `json:"message,omitempty"`
+	Successor     string            `json:"successor,omitempty"`
+	DetectedAt    string            `json:"detectedAt,omitempty"`
+	CooldownUntil string            `json:"cooldownUntil,omitempty"`
 }
 
 // DeprecationKey builds the storage key for a provider/model pair. Both parts

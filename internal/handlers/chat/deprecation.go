@@ -1,9 +1,10 @@
 package chat
 
 import (
+	"9router/proxy/internal/db"
+	"9router/proxy/internal/handlerutil"
 	"context"
 	"time"
-	"9router/proxy/internal/handlerutil"
 
 	"9router/proxy/internal/log"
 	"9router/proxy/internal/providers"
@@ -103,6 +104,9 @@ func (h *ChatHandler) clearModelDeprecation(provider, model string) {
 	if h.Repo == nil || provider == "" || model == "" {
 		return
 	}
+	h.modelFailureMu.Lock()
+	delete(h.modelFailures, providers.DeprecationKey(provider, model))
+	h.modelFailureMu.Unlock()
 	dep, err := h.Repo.GetModelDeprecation(provider, model)
 	if err != nil {
 		// Nothing recorded (or unreadable): there is no badge to retract.
@@ -113,4 +117,85 @@ func (h *ChatHandler) clearModelDeprecation(provider, model string) {
 		return
 	}
 	log.Info("deprecation", "model serving again, badge cleared", "provider", provider, "model", model, "was", string(dep.Status))
+}
+
+// noteModelFailure counts repeated model-level failures, then opens a
+// provider/model circuit breaker. Account authentication failures never enter
+// this counter, so one bad credential cannot disable a model across the pool.
+func (h *ChatHandler) noteModelFailure(ctx context.Context, provider, model, connID string, ue *upstreamError) bool {
+	if h.Repo == nil || handlerutil.IsProbeContext(ctx) || provider == "" || model == "" || ue == nil {
+		return false
+	}
+	if ue.StatusCode != 404 && !(ue.StatusCode == 429 && isModelScopedError(ue.StatusCode, extractErrorText(ue.Body), model)) && (ue.StatusCode < 500 || ue.StatusCode > 504) {
+		return false
+	}
+	settings, err := h.Repo.GetSettings()
+	if err != nil || settings == nil {
+		settings = db.DefaultSettings()
+	}
+	threshold, cooldown := settings.ModelFailureThreshold, settings.ModelFailureCooldownSeconds
+	if threshold < 1 {
+		threshold = 3
+	}
+	if cooldown < 10 {
+		cooldown = 300
+	}
+	key := providers.DeprecationKey(provider, model)
+	h.modelFailureMu.Lock()
+	if h.modelFailures == nil {
+		h.modelFailures = make(map[string]int)
+	}
+	h.modelFailures[key]++
+	count := h.modelFailures[key]
+	if count < threshold {
+		h.modelFailureMu.Unlock()
+		return false
+	}
+	h.modelFailures[key] = 0
+	h.modelFailureMu.Unlock()
+
+	now := time.Now().UTC()
+	until := now.Add(time.Duration(cooldown) * time.Second)
+	dep := providers.ModelDeprecation{
+		Provider: provider, Model: model, Status: providers.DeprecationCooldown,
+		Message: extractErrorText(ue.Body), DetectedAt: now.Format(time.RFC3339),
+		CooldownUntil: until.Format(time.RFC3339),
+	}
+	if err := h.Repo.RecordModelDeprecation(dep); err != nil {
+		log.Warn("model-health", "cooldown state save failed", "provider", provider, "model", model, "error", err)
+	}
+	connections, err := h.Repo.GetProviderConnections(provider, true)
+	if err == nil {
+		lockKey := canonicalLockModel(provider, model)
+		for _, conn := range connections {
+			if conn == nil {
+				continue
+			}
+			_ = h.Repo.LockConnectionModel(conn.ID, lockKey, cooldown, 0)
+			if lockKey != model {
+				_ = h.Repo.LockConnectionModel(conn.ID, model, cooldown, 0)
+			}
+		}
+	}
+	log.Warn("model-health", "model cooldown opened", "provider", provider, "model", model, "failures", count, "cooldown_s", cooldown, "conn", connID)
+	return true
+}
+
+func (h *ChatHandler) modelCoolingDown(provider, model string) bool {
+	if h.Repo == nil {
+		return false
+	}
+	dep, err := h.Repo.GetModelDeprecation(provider, model)
+	if err != nil || dep.Status != providers.DeprecationCooldown {
+		return false
+	}
+	until, err := time.Parse(time.RFC3339, dep.CooldownUntil)
+	if err != nil || !time.Now().Before(until) {
+		_ = h.Repo.ClearModelDeprecation(provider, model)
+		h.modelFailureMu.Lock()
+		delete(h.modelFailures, providers.DeprecationKey(provider, model))
+		h.modelFailureMu.Unlock()
+		return false
+	}
+	return true
 }
