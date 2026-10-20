@@ -544,6 +544,11 @@ func (h *ChatHandler) handleComboFallback(ctx context.Context, w http.ResponseWr
 			if modelInfo == nil {
 				continue
 			}
+			if h.modelCoolingDown(modelInfo.Provider, modelInfo.Model) {
+				log.Warn("combo", "skip model cooldown", "provider", modelInfo.Provider, "model", modelInfo.Model)
+				lastErr = &upstreamError{StatusCode: http.StatusTooManyRequests, Body: []byte(`{"error":{"message":"model is temporarily cooling down after repeated upstream failures","type":"rate_limit_error","code":429}}`)}
+				continue
+			}
 
 			// Skip unavailable (model-locked) providers
 			if !h.Repo.IsProviderAvailable(modelInfo.Provider, modelInfo.Model) {
@@ -651,6 +656,11 @@ func (h *ChatHandler) handleComboFallback(ctx context.Context, w http.ResponseWr
 						// which is the scope that actually matters.
 						if providers.IsModelDeprecation(ue.StatusCode, ue.Body) {
 							h.recordModelDeprecation(ctx, modelInfo.Provider, modelInfo.Model, connID, ue)
+							retry.note(ue)
+							lastErr = ue
+							break
+						}
+						if h.noteModelFailure(ctx, modelInfo.Provider, modelInfo.Model, connID, ue) {
 							retry.note(ue)
 							lastErr = ue
 							break
@@ -775,6 +785,11 @@ func (h *ChatHandler) handleMessagesComboFallback(ctx context.Context, w http.Re
 			if modelInfo == nil {
 				continue
 			}
+			if h.modelCoolingDown(modelInfo.Provider, modelInfo.Model) {
+				log.Warn("combo", "skip model cooldown", "provider", modelInfo.Provider, "model", modelInfo.Model)
+				lastErr = &upstreamError{StatusCode: http.StatusTooManyRequests, Body: []byte(`{"error":{"message":"model is temporarily cooling down after repeated upstream failures","type":"rate_limit_error","code":429}}`)}
+				continue
+			}
 
 			// Skip unavailable (model-locked) providers
 			if !h.Repo.IsProviderAvailable(modelInfo.Provider, modelInfo.Model) {
@@ -866,6 +881,11 @@ func (h *ChatHandler) handleMessagesComboFallback(ctx context.Context, w http.Re
 						// would have nothing left to fail over to.
 						if providers.IsModelDeprecation(ue.StatusCode, ue.Body) {
 							h.recordModelDeprecation(ctx, modelInfo.Provider, modelInfo.Model, connID, ue)
+							retry.note(ue)
+							lastErr = ue
+							break
+						}
+						if h.noteModelFailure(ctx, modelInfo.Provider, modelInfo.Model, connID, ue) {
 							retry.note(ue)
 							lastErr = ue
 							break

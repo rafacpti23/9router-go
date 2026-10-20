@@ -6,6 +6,7 @@ import {
   resolveFilteredGroups,
   resolveModelPickerGroups,
 } from './pickerData'
+import { antigravityBackendModelID } from '../../lib/antigravity-models'
 
 describe('pickerData', () => {
   it('includes connected providers and no-auth providers regardless of isActive', () => {
@@ -316,5 +317,32 @@ describe('pickerData', () => {
       dsGroup.models.filter((m) => m.id !== 'deepseek-chat').every((m) => !m.deprecated),
       true
     )
+  })
+
+  it('marks a model temporarily unavailable during its failure cooldown', () => {
+    const groups = resolveModelPickerGroups(
+      [{ id: 'conn-ag', provider: 'antigravity', authType: 'oauth', name: null, email: null, priority: 1, isActive: 1, data: '{}', createdAt: '', updatedAt: '' }],
+      [],
+      { deprecations: { 'antigravity/gemini-3.1-pro-high': { status: 'cooldown', cooldownUntil: new Date(Date.now() + 60_000).toISOString() } } }
+    )
+    const model = groups.find((group) => group.id === 'antigravity')?.models.find((item) => item.id === 'gemini-3.1-pro-high')
+    assert.ok(model)
+    assert.strictEqual(model.unavailable, true)
+  })
+
+  it('disables Antigravity catalog models absent from a successfully discovered live catalog', () => {
+    const groups = resolveModelPickerGroups(
+      [{ id: 'conn-ag', provider: 'antigravity', authType: 'oauth', name: null, email: null, priority: 1, isActive: 1, data: '{}', createdAt: '', updatedAt: '' }],
+      [],
+      { liveCatalogs: { antigravity: { complete: true, modelIds: ['gemini-3.8-flash-high', 'gemini-pro-agent'] } } }
+    )
+    const models = groups.find((group) => group.id === 'antigravity')?.models
+    assert.strictEqual(models?.find((model) => model.id === 'gemini-3.1-pro-high')?.unavailable, false)
+    assert.strictEqual(models?.find((model) => model.id === 'gemini-3.1-pro-low')?.unavailable, true)
+  })
+
+  it('normalizes catalog aliases to Antigravity backend model IDs before availability checks', () => {
+    assert.strictEqual(antigravityBackendModelID('gemini-3.7-flash-low'), 'gemini-3.7-flash-tiered')
+    assert.strictEqual(antigravityBackendModelID('gemini-3.8-flash'), 'gemini-3.8-flash-medium')
   })
 })

@@ -1,6 +1,7 @@
 package chat
 
 import (
+	"context"
 	json "encoding/json/v2"
 	"errors"
 	"net/http"
@@ -11,6 +12,33 @@ import (
 	"9router/proxy/internal/db"
 	"9router/proxy/internal/providers"
 )
+
+func TestRepeatedModelNotFoundOpensConfiguredCooldown(t *testing.T) {
+	handler, repo, cleanup := setupDeprecatedModelCombo(t, `{"error":{"type":"ModelDeprecated","message":"retired"}}`)
+	defer cleanup()
+	ue := &upstreamError{StatusCode: http.StatusNotFound, Body: []byte(`{"error":{"message":"Requested entity was not found"}}`)}
+	for i := 0; i < 2; i++ {
+		if handler.noteModelFailure(context.Background(), "deepseek", "deepseek-chat", "conn-dead", ue) {
+			t.Fatal("cooldown opened before the default threshold")
+		}
+	}
+	if !handler.noteModelFailure(context.Background(), "deepseek", "deepseek-chat", "conn-dead", ue) {
+		t.Fatal("cooldown did not open at the default threshold")
+	}
+	dep, err := repo.GetModelDeprecation("deepseek", "deepseek-chat")
+	if err != nil || dep.Status != providers.DeprecationCooldown {
+		t.Fatalf("model cooldown state = %+v, err=%v", dep, err)
+	}
+	if !handler.modelCoolingDown("deepseek", "deepseek-chat") {
+		t.Fatal("model should be unavailable during the cooldown")
+	}
+	for _, id := range []string{"conn-dead", "conn-live"} {
+		locked, err := repo.IsConnectionModelLocked(id, "deepseek-chat")
+		if err != nil || !locked {
+			t.Errorf("connection %s locked = %v, err=%v; want model cooldown lock", id, locked, err)
+		}
+	}
+}
 
 // setupDeprecatedModelCombo points a mock provider at an upstream that refuses
 // one model with the HTTP 410 a provider retires models with, and serves the

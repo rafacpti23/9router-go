@@ -91,6 +91,8 @@
   let stickyRoundRobinLimit = $state(3)
   let comboStrategy = $state('first-model')
   let forceFallback = $state(false)
+  let modelFailureThreshold = $state(3)
+  let modelFailureCooldownSeconds = $state(300)
 
   // Feature Visibility: ids of the sidebar entries this deployment hides. The
   // entry list itself lives in web/src/lib/nav.ts, shared with the sidebar.
@@ -158,6 +160,8 @@
       if (typeof settings.stickyRoundRobinLimit === 'number') stickyRoundRobinLimit = settings.stickyRoundRobinLimit
       if (typeof settings.comboStrategy === 'string') comboStrategy = settings.comboStrategy
       if (typeof settings.forceFallback === 'boolean') forceFallback = settings.forceFallback
+      if (typeof settings.modelFailureThreshold === 'number') modelFailureThreshold = settings.modelFailureThreshold
+      if (typeof settings.modelFailureCooldownSeconds === 'number') modelFailureCooldownSeconds = settings.modelFailureCooldownSeconds
 
       // Global system prompt
       enableSystemPrompt = !!settings.systemPromptEnabled
@@ -196,6 +200,8 @@
         hiddenNav = orderHiddenNav(s.navVisibility)
         if (s.comboStrategy) comboStrategy = String(s.comboStrategy)
         if (typeof s.forceFallback === 'boolean') forceFallback = s.forceFallback
+        if (typeof s.modelFailureThreshold === 'number') modelFailureThreshold = s.modelFailureThreshold
+        if (typeof s.modelFailureCooldownSeconds === 'number') modelFailureCooldownSeconds = s.modelFailureCooldownSeconds
         enableSystemPrompt = !!s.systemPromptEnabled
         if (typeof s.systemPromptPrefix === 'string') systemPromptPrefix = s.systemPromptPrefix
         if (typeof s.systemPromptSuffix === 'string') systemPromptSuffix = s.systemPromptSuffix
@@ -342,6 +348,8 @@
         stickyRoundRobinLimit,
         comboStrategy,
         forceFallback,
+        modelFailureThreshold,
+        modelFailureCooldownSeconds,
         systemPromptEnabled: enableSystemPrompt,
         systemPromptPrefix,
         systemPromptSuffix,
@@ -1052,6 +1060,23 @@
           When every account is in cooldown, send the request through the account that
           frees up first instead of failing. Requests can still be rejected upstream.
         </p>
+
+        <div class="rounded-lg border border-border bg-surface-2/60 p-3 space-y-3">
+          <div>
+            <h3 class="font-semibold text-text-main">Per-model failure protection</h3>
+            <p class="text-[11px] text-text-muted">After repeated failures, temporarily pauses that provider/model. Existing combos are preserved.</p>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <label for="model-failure-threshold" class="space-y-1">
+              <span class="block text-[11px] font-medium text-text-muted">Failures before cooldown</span>
+              <input id="model-failure-threshold" type="number" min="1" max="20" step="1" bind:value={modelFailureThreshold} class="w-full rounded-lg border border-border bg-bg px-3 py-2 text-xs text-text-main" />
+            </label>
+            <label for="model-failure-cooldown" class="space-y-1">
+              <span class="block text-[11px] font-medium text-text-muted">Cooldown duration (seconds)</span>
+              <input id="model-failure-cooldown" type="number" min="10" max="86400" step="10" bind:value={modelFailureCooldownSeconds} class="w-full rounded-lg border border-border bg-bg px-3 py-2 text-xs text-text-main" />
+            </label>
+          </div>
+        </div>
 
       </div>
     </Card>

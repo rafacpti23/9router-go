@@ -17,9 +17,10 @@
      *  model the gateway saw refuse with a 410, so the operator knows before
      *  putting it in a combo. */
     deprecated?: boolean
+    unavailable?: boolean
   }
 
-  let { label, value, isAdded, vision = false, reasoning = false, onToggle, deprecated = false }: Props = $props()
+  let { label, value, isAdded, vision = false, reasoning = false, onToggle, deprecated = false, unavailable = false }: Props = $props()
 
   function handleClick() {
     onToggle(value)
@@ -30,8 +31,13 @@
   type="button"
   {value}
   onclick={handleClick}
+  disabled={unavailable && !isAdded}
+  title={unavailable ? (isAdded ? 'Temporarily unavailable — remove it from this combo or wait for the cooldown to expire' : 'Temporarily unavailable after repeated provider failures') : undefined}
+  aria-disabled={unavailable && !isAdded}
   class={`px-2 py-1 rounded-xl text-xs font-medium transition-all border hover:cursor-pointer flex items-center gap-1 ${
-    isAdded
+    unavailable && !isAdded
+      ? 'bg-surface-2 border-border text-text-muted opacity-55 cursor-not-allowed'
+      : isAdded
       ? 'bg-brand-500 text-white border-brand-500 hover:bg-brand-600'
       : 'bg-surface border-border text-text-main hover:border-brand-500/50 hover:bg-brand-500/5'
   }`}
@@ -52,5 +58,8 @@
       title="Deprecated — this model was retired by the provider and cannot serve a request"
       aria-label="Deprecated"
     >error</span>
+  {/if}
+  {#if unavailable}
+    <span class="material-symbols-outlined text-[13px] leading-none shrink-0 {isAdded ? 'text-white/90' : 'text-warning'}" aria-label="Temporarily unavailable">schedule</span>
   {/if}
 </button>

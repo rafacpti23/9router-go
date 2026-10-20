@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"crypto/subtle"
 	"database/sql"
+	json "encoding/json/v2"
 	"errors"
 	"fmt"
 	"io"
@@ -12,7 +13,6 @@ import (
 	"net/url"
 	"strings"
 	"time"
-	json "encoding/json/v2"
 
 	"golang.org/x/crypto/bcrypt"
 
@@ -101,6 +101,18 @@ func (h *DashboardHandler) HandleUpdateSettings(w http.ResponseWriter, r *http.R
 		if _, ok := updates[key]; ok {
 			handlerutil.WriteJSONError(w, http.StatusBadRequest, "setting "+key+" is read-only")
 			return
+		}
+	}
+	for key, bounds := range map[string][2]float64{
+		"modelFailureThreshold":       {1, 20},
+		"modelFailureCooldownSeconds": {10, 86400},
+	} {
+		if raw, ok := updates[key]; ok {
+			n, valid := raw.(float64)
+			if !valid || n != float64(int(n)) || n < bounds[0] || n > bounds[1] {
+				handlerutil.WriteJSONError(w, http.StatusBadRequest, fmt.Sprintf("%s must be an integer between %d and %d", key, int(bounds[0]), int(bounds[1])))
+				return
+			}
 		}
 	}
 
